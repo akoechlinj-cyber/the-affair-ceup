@@ -2753,8 +2753,7 @@ async function loadStages(forceRefresh = false) {
     if (selM) {
       const previous = selM.value;
       selM.innerHTML = '<option value="">Selecciona miembro</option>' +
-        stageData.miembros.map(n => new Option(n, n).outerHTML).join('') +
-        '<option value="__otro__">Miembro no listado</option>';
+        stageData.miembros.map(n => new Option(n, n).outerHTML).join('');
       if (Array.from(selM.options).some(option => option.value === previous)) selM.value = previous;
     }
   }
