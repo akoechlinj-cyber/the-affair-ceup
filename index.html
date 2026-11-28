@@ -1805,7 +1805,7 @@ body::after{ background:radial-gradient(ellipse at 50% 0%, rgba(212,175,99,.20),
 </section>
 <section class="section pt-28 px-6 max-w-md mx-auto pb-20" id="free-pending">
 <div class="rounded-2xl p-8 text-center" style="background:rgba(248,243,234,0.95);border:1px solid rgba(154,116,68,0.15);color:#24190F;box-shadow:0 8px 32px rgba(20,13,8,0.15)">
-<h2 class="text-3xl font-extrabold mb-3" style="color:#9A7444">¡Tienes una entrada free!</h2>
+<h2 id="free-pending-title" class="text-3xl font-extrabold mb-3" style="color:#9A7444">¡Tienes una entrada free!</h2>
 <p class="mb-6" style="color:#24190F">Para recibirla, inicia sesión o crea tu cuenta con el correo de quien asistirá. Al ingresar, volverás aquí para completar tus datos.</p>
 <div class="flex flex-wrap gap-3 justify-center">
 <button type="button" class="btn btn-gold" onclick="showSection('login')">Ingresar</button>
@@ -5093,8 +5093,18 @@ async function apiInterno(payload) {
 <script>
 // === ENTRADA FREE ===
 // Pide iniciar sesión, valida el link en el portal y registra la entrada con la sesión de la cuenta.
+// Links ENT-: entrada pagada que generó Directiva (misma pantalla, otros textos).
+const esEntradaDirectiva = id => /^ENT-/i.test(String(id || ''));
+function textosFree(freeID) {
+  const pagada = esEntradaDirectiva(freeID);
+  const t = pagada ? '¡Tienes una entrada!' : '¡Tienes una entrada free!';
+  const a = document.getElementById('free-pending-title'), b = document.getElementById('free-recibe-title');
+  if (a) a.textContent = t; if (b) b.textContent = t;
+  return pagada;
+}
 async function showFreeFlow(freeID) {
   _freeID = freeID;
+  const pagada = textosFree(freeID);
   const sess = getSession();
   if (!sess) { localStorage.setItem('pending_free', freeID); showSection('free-pending'); return; }
   const info = document.getElementById('free-info'), form = document.getElementById('free-form');
@@ -5104,12 +5114,12 @@ async function showFreeFlow(freeID) {
   let v;
   try { v = await apiInterno({ action: 'validarFree', freeID }); }
   catch (err) { info.textContent = 'No pudimos verificar el link. Intenta de nuevo en unos segundos.'; return; }
-  if (!v || !v.valido) { info.textContent = (v && v.motivo) || 'Este link de entrada Free no es válido.'; return; }
+  if (!v || !v.valido) { info.textContent = (v && v.motivo) || (pagada ? 'Este link de entrada no es válido.' : 'Este link de entrada Free no es válido.'); return; }
   try {
     const t = await api({ action: 'getMyTicket', email: sess.email });
     if (t && t.status === 'ok' && t.ticket) { info.textContent = 'Tu cuenta ya tiene una entrada registrada. Solo se permite una por persona.'; return; }
   } catch (_) {}
-  info.textContent = 'Completa tus datos para recibir tu entrada free con la cuenta ' + String(sess.email).toLowerCase() + '.';
+  info.textContent = (pagada ? 'Tu entrada ya está pagada. Completa tus datos para registrarla con la cuenta ' : 'Completa tus datos para recibir tu entrada free con la cuenta ') + String(sess.email).toLowerCase() + '.';
   form.classList.remove('hidden');
 }
 async function submitFreeRecibe(e) {
@@ -5139,12 +5149,13 @@ async function submitFreeRecibe(e) {
       _freeDoneID = _freeID;
       localStorage.removeItem('pending_free');
       clearApiCache();
-      let ticket = { id: res.newTicketID, tipo: 'free' };
+      const pagadaOk = esEntradaDirectiva(_freeID);
+      let ticket = { id: res.newTicketID, tipo: pagadaOk ? 'lifesaver' : 'free' };
       try { const t = await api({ action: 'getMyTicket', email: sess.email }); if (t && t.ticket) ticket = t.ticket; } catch (_) {}
       saveTicket(ticket);
       updateNav();
       document.getElementById('success-title').innerText = '¡Entrada recibida!';
-      document.getElementById('success-msg').innerText = 'Tu entrada free ya está a tu nombre. La verás en Mi Entrada.';
+      document.getElementById('success-msg').innerText = pagadaOk ? 'Tu entrada ya está a tu nombre y aprobada. La verás en Mi Entrada.' : 'Tu entrada free ya está a tu nombre. La verás en Mi Entrada.';
       document.getElementById('success-extra').textContent = '';
       showSection('success');
       try { confetti(); } catch (_) {}
